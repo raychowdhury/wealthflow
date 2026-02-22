@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  createdAt   DateTime     @default(now())
+  scenarios   Scenario[]
+  preference  UserPreference?
+}
+
+model UserPreference {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  baseCurrency        String   @default("AED")
+  riskProfile         String   @default("med")   // low | med | high
+  emergencyFundMonths Int      @default(3)
+  advisorTone         String   @default("concise") // concise | neutral
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Scenario {
+  id          String        @id @default(cuid())
+  userId      String
+  name        String
+  currency    String        @default("AED")
+  startMonth  DateTime
+  months      Int           @default(60)
+  initialCash Float         @default(0)
+  incomes     Income[]
+  expenses    Expense[]
+  debts       Debt[]
+  investments Investment[]
+  advisorRuns AdvisorRun[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Income {
+  id         String   @id @default(cuid())
+  scenarioId String
+  label      String
+  amount     Float
+  startMonth Int      @default(0)
+  endMonth   Int?
+  growthRate Float    @default(0)  // annual %
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+}
+
+model Expense {
+  id         String   @id @default(cuid())
+  scenarioId String
+  label      String
+  amount     Float
+  category   String   @default("fixed") // fixed | discretionary | rent
+  startMonth Int      @default(0)
+  endMonth   Int?
+  growthRate Float    @default(0)
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+}
+
+model Debt {
+  id              String   @id @default(cuid())
+  scenarioId      String
+  label           String
+  balance         Float
+  annualRate      Float
+  minPayment      Float
+  strategy        String   @default("min") // min | aggressive | instant
+  scenario        Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+}
+
+model Investment {
+  id                  String   @id @default(cuid())
+  scenarioId          String
+  label               String
+  currentValue        Float
+  monthlyContribution Float    @default(0)
+  expectedAnnualReturn Float   @default(0.07)
+  scenario            Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+}
+
+model AdvisorRun {
+  id           String   @id @default(cuid())
+  scenarioId   String
+  createdAt    DateTime @default(now())
+  model        String
+  inputHash    String
+  responseJson Json
+  scenario     Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId, inputHash])
+}

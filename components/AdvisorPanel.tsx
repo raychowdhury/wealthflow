@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { AdvisorResponse, AdvisorAction } from '@/lib/advisor-schema';
 import type { ForecastResult, ScenarioInput } from '@/lib/types';
 
@@ -21,6 +21,8 @@ interface Props {
     emergencyFundMonths?: number;
     advisorTone?: 'concise' | 'neutral';
   };
+  /** When true, auto-trigger generate() if no insights loaded yet */
+  autoTrigger?: boolean;
 }
 
 const CONFIDENCE_STYLE = {
@@ -42,7 +44,7 @@ function fmtDelta(v: number, currency: string) {
   return `${sign}${currency} ${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
-export function AdvisorPanel({ scenario, currency, onApplyAction, preferences }: Props) {
+export function AdvisorPanel({ scenario, currency, onApplyAction, preferences, autoTrigger }: Props) {
   const [loading, setLoading]     = useState(false);
   const [advisor, setAdvisor]     = useState<AdvisorResponse | null>(null);
   const [meta, setMeta]           = useState<AdvisorMeta | null>(null);
@@ -75,6 +77,14 @@ export function AdvisorPanel({ scenario, currency, onApplyAction, preferences }:
       setLoading(false);
     }
   }, [scenario, preferences]);
+
+  // Auto-trigger once when parent signals first forecast is ready
+  useEffect(() => {
+    if (autoTrigger && !advisor && !loading) {
+      generate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTrigger]);
 
   const applyAction = (action: AdvisorAction) => {
     setAppliedId(action.id);
